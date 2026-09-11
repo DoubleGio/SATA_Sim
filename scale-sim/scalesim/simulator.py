@@ -1,8 +1,8 @@
 import os
 
-from scale_config import scale_config as cfg
-from topology_utils import topologies as topo
-from single_layer_sim import single_layer_sim as layer_sim
+from .scale_config import scale_config as cfg
+from .topology_utils import topologies as topo
+from .single_layer_sim import single_layer_sim as layer_sim
 
 
 class simulator:

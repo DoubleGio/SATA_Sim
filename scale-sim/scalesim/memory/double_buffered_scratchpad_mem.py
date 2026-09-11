@@ -2,11 +2,11 @@ import time
 import numpy as np
 from tqdm import tqdm
 
-from memory.read_buffer import read_buffer as rdbuf
-from memory.read_buffer_estimate_bw import ReadBufferEstimateBw as rdbuf_est
-from memory.read_port import read_port as rdport
-from memory.write_buffer import write_buffer as wrbuf
-from memory.write_port import write_port as wrport
+from .read_buffer import read_buffer as rdbuf
+from .read_buffer_estimate_bw import ReadBufferEstimateBw as rdbuf_est
+from .read_port import read_port as rdport
+from .write_buffer import write_buffer as wrbuf
+from .write_port import write_port as wrport
 
 
 class double_buffered_scratchpad:
@@ -21,9 +21,9 @@ class double_buffered_scratchpad:
 
         self.verbose = True
 
-        self.ifmap_trace_matrix = np.zeros((1,1), dtype=np.int)
-        self.filter_trace_matrix = np.zeros((1,1), dtype=np.int)
-        self.ofmap_trace_matrix = np.zeros((1,1), dtype=np.int)
+        self.ifmap_trace_matrix = np.zeros((1,1), dtype=int)
+        self.filter_trace_matrix = np.zeros((1,1), dtype=int)
+        self.ofmap_trace_matrix = np.zeros((1,1), dtype=int)
 
         # Metrics to gather for generating run reports
         self.total_cycles = 0

@@ -3,6 +3,7 @@ import shutil
 import os
 import subprocess
 import re
+import argparse
 from collections import OrderedDict
 
 
@@ -166,20 +167,26 @@ def represent_ordereddict(dumper, data):
 
 yaml.add_representer(OrderedDict, represent_ordereddict)
 
-def store_results_to_yaml(dram_data, sram_data):
+def store_results_to_yaml(dram_data, sram_data, results_folder="results"):
     results = {
         "DRAM": dram_data,
         "SRAM": sram_data
     }
     # Save the results to a YAML file
     os.chdir(original_directory)
-    with open("results/mem-stat.yaml", 'w') as file:
+    with open(os.path.join(results_folder, "mem-stat.yaml"), 'w') as file:
         yaml.dump(results, file)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run Cacti simulations for SRAM and DRAM based on YAML configuration.")
+    parser.add_argument("-c", "--config", default="sata-config.yaml", help="Path to the configuration YAML file.",)
+    parser.add_argument("-w", "--workload", default="workload.yaml", help="Path to the workload YAML file.",)
+    args = parser.parse_args()
+    res_folder = os.path.join("results", args.workload.removesuffix(".yaml").removeprefix("workload-") if "-" in args.workload else "")
+    os.makedirs(res_folder, exist_ok=True)
     # Capture the original directory
     original_directory = os.getcwd()
-    architecture_name, sram_data, dram_data = extract_info('sata-config.yaml')
+    architecture_name, sram_data, dram_data = extract_info(args.config)
     generate_config_files(architecture_name, sram_data, "sram")
     generate_config_files(architecture_name, dram_data, "dram")
     run_cacti_simulation(architecture_name, "sram")
@@ -189,4 +196,4 @@ if __name__ == "__main__":
     sram_results = extract_sram_data(architecture_name)
 
     # Store the results to a YAML file
-    store_results_to_yaml(dram_results, sram_results)
+    store_results_to_yaml(dram_results, sram_results, results_folder=res_folder)

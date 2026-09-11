@@ -20,7 +20,6 @@ spike-mac:
   total: 6238.323078435
 total: 411552.10589276004
 total_activation_ops: 208544
+total_li_ops: 7840
+total_lif_ops: 200704
 total_mac_ops: 88309
-total_total_li_ops: 7840
-total_total_lif_ops: 200704
-total_total_mac_ops: 88309

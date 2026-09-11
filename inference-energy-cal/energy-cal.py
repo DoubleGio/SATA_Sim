@@ -1,6 +1,8 @@
 import yaml
 import os
 import math
+import argparse
+from conv_utils import compute_conv_output_size
 
 def read_cycles(cycle_filepath, arch_configpath, workload_filepath):
 
@@ -50,7 +52,7 @@ def read_cycles(cycle_filepath, arch_configpath, workload_filepath):
     
 
 def extract_workload(workload_filepath):
-    
+    """Extract workload information from the workload YAML file."""
     with open(workload_filepath, 'r') as file:
         work_data = yaml.safe_load(file)
     general = work_data.get('General')
@@ -60,28 +62,40 @@ def extract_workload(workload_filepath):
     workload_dic = {}
     layers = work_data.get('Layers', {})
     total_mac = 0.0
-    total_lif = 0.0
+    neuron_types = {layer['attributes'].get('Neuron Type', 'lif') for layer in layers}
+    total_neurons = {n_type: 0.0 for n_type in neuron_types}
 
     for l in layers:
-        attr = l['attributes']
         name = l['name']
+        attr = l['attributes']
+        n_type = attr.get('Neuron Type', 'lif')  # Default to 'lif' if not specified
+        layer_sparsity = attr.get('sparsity', sparsity)  # per-layer override
         if 'Conv' in name:
-            of_w = (math.floor((attr['IFMAP Width'] + 2 - attr['Filter Width'])/attr['Strides']) + 1) # TODO: Adding support for different padding, now assume 1
-            of_h = (math.floor((attr['IFMAP Height'] + 2 - attr['Filter Height'])/attr['Strides']) + 1)
-            total_lif += attr['Num Filter'] * (of_w * of_h) * timestep
-            total_mac += attr['Num Filter'] * (of_w * of_h) * (attr['Filter Width'] * attr['Filter Height'] * attr['Channels']) * timestep * (1-sparsity)
-        elif 'FC' in name: #! Added support for FC.
-            total_mac += attr['Num Filter'] * attr['Channels'] * timestep * (1-sparsity)
-            total_lif += attr['Num Filter'] * timestep
+            of_h, of_w = compute_conv_output_size(
+                attr['IFMAP Height'], attr['IFMAP Width'],
+                attr['Filter Height'], attr['Filter Width'],
+                attr['Strides'], attr.get('Padding', 'same')
+            )
+            total_neurons[n_type] += attr['Num Filter'] * (of_w * of_h) * timestep
+            total_mac += attr['Num Filter'] * (of_w * of_h) * (attr['Filter Width'] * attr['Filter Height'] * attr['Channels']) * timestep * (1-layer_sparsity)
+            if attr.get('Recurrent', False): # Added conv (all-to-all) recurrence (1x1 kernel)
+                total_mac += attr['Num Filter'] * attr['Num Filter'] * (of_w * of_h) * timestep * (1-layer_sparsity)
+        elif 'FC' in name:
+            total_neurons[n_type] += attr['Num Filter'] * timestep
+            total_mac += attr['Num Filter'] * attr['Channels'] * timestep * (1-layer_sparsity)
+            if attr.get('Recurrent', False): # Added (all-to-all) recurrence
+                total_mac += attr['Num Filter'] * attr['Num Filter'] * timestep * (1-layer_sparsity) 
     
     workload_dic['total_mac'] = int(total_mac)
-    workload_dic['total_lif'] = int(total_lif)
-    
+    for n_type, count in total_neurons.items():
+        workload_dic[f'total_{n_type}'] = int(count)
+    workload_dic['total_neurons'] = int(sum(total_neurons.values()))
+
     return workload_dic
 
 
-def comp_computation_energy(comp_filepath, cycle_dict, arch_configpath, workload_dict):
-    
+def comp_computation_energy(comp_filepath, cycle_dict, arch_configpath, workload_dict, res_folder):
+    """Compute the energy consumption of processing elements (PEs) based on the workload and architecture configuration."""
     with open(arch_configpath, 'r') as file:
         data = yaml.safe_load(file)
     subtrees_ = data.get('architecture', {}).get('subtree', [])
@@ -101,19 +115,22 @@ def comp_computation_energy(comp_filepath, cycle_dict, arch_configpath, workload
     comp_dic = {}
     total_comp = 0.0
     for component, values in comp_data.items():
+        if f'total_{component}' in workload_dict:
+            workload = workload_dict[f'total_{component}']
+        elif component in ['spad', 'spike-mac']:
+            workload = workload_dict['total_mac']
+        else:
+            continue  # Skip components that don't have a corresponding workload
         comp_dic[component] = {}
         subtotal = 0.0
-        if 'lif' in component:
-            workload = workload_dict['total_lif']
-        else:
-            workload = workload_dict['total_mac']
+        
         # ! Power of computation unit is in mW, from the comp-stat.yaml
         convert_ratio = 1000000 # ! Need to convert it back to nJ, to align with the memory energy, which is in nJ
         for key, value in values.items():
             if isinstance(value, dict):
                 comp_dic[component]['energy-operation'] = value['y'] * workload * cyc * convert_ratio 
                 subtotal += comp_dic[component]['energy-operation']
-                comp_dic[component]['energy-ungated'] = value['n']*cycle_dict['total_cycles'] * cyc * convert_ratio * pe_size
+                comp_dic[component]['energy-ungated'] = value['n'] * cycle_dict['total_cycles'] * cyc * convert_ratio * pe_size
                 subtotal += comp_dic[component]['energy-ungated']
             elif 'lpower' in key:
                 comp_dic[component]['energy-leakage'] = value * cycle_dict['total_cycles'] * cyc * convert_ratio * pe_size
@@ -122,18 +139,20 @@ def comp_computation_energy(comp_filepath, cycle_dict, arch_configpath, workload
         total_comp += subtotal
     comp_dic['total'] = total_comp
 
-    comp_dic['total_mac_ops'] = workload_dic['total_mac']
-    comp_dic['total_activation_ops'] = workload_dic['total_lif']
+    comp_dic['total_mac_ops'] = workload_dict['total_mac']
+    for tag, count in workload_dict.items():
+        if tag.startswith('total_') and tag not in ['total_mac', 'total_neurons']:
+            comp_dic[f'{tag}_ops'] = count
+    comp_dic['total_activation_ops'] = workload_dict['total_neurons']
 
-    file_path = './results/computation-energy.yaml'
-    # print()
+    file_path = os.path.join(res_folder, 'computation-energy.yaml')
     with open(file_path, 'w') as yaml_file:
         yaml.dump(comp_dic, yaml_file, default_flow_style=False)
     return comp_dic
 
 
-def comp_mem_energy(mem_filepath, cycle_dict, arch_configpath):
-
+def comp_mem_energy(mem_filepath, cycle_dict, arch_configpath, res_folder):
+    """Compute the energy consumption of memory components (SRAM and DRAM) based on the cycle statistics and architecture configuration."""
     with open(arch_configpath, 'r') as file:
         arch_data = yaml.safe_load(file)
     arch = arch_data.get('architecture')
@@ -191,25 +210,30 @@ def comp_mem_energy(mem_filepath, cycle_dict, arch_configpath):
     mem_dic['sram_total'] = total_sram
     mem_dic['total'] = total_dram + total_sram
 
-    file_path = './results/memory-energy.yaml'
+    file_path = os.path.join(res_folder, 'memory-energy.yaml')
     with open(file_path, 'w') as yaml_file:
         yaml.dump(mem_dic, yaml_file, default_flow_style=False)
     return mem_dic
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run SATA energy calculation.")
+    parser.add_argument("-c", "--config", default="archs/sata-config.yaml", help="Path to the configuration YAML file.",)
+    parser.add_argument("-w", "--workload", default="workload.yaml", help="Path to the workload YAML file.",)
+    args = parser.parse_args()
 
-    cycle_path = './results/cycle-stat.yaml'
-    arch_path = './arch-config.yaml'
-    mem_path = './results/mem-stat.yaml'
-    comp_path = './results/comp-stat.yaml'
-    # work_path = './workloads/workload_direct.yaml'
-    work_path = './workload.yaml'
+    res_folder = os.path.join("results", args.workload.removesuffix(".yaml").removeprefix("workload-") if "-" in args.workload else "")
+    os.makedirs(res_folder, exist_ok=True)
+    cycle_path = os.path.join(res_folder, 'cycle-stat.yaml')
+    arch_path = args.config
+    mem_path = os.path.join(res_folder, 'mem-stat.yaml')
+    comp_path = os.path.join(res_folder, 'comp-stat.yaml')
+    work_path = args.workload
 
     cycle_stat = read_cycles(cycle_path, arch_path, work_path)
     workload_dic = extract_workload(work_path)
-    mem_dic = comp_mem_energy(mem_path, cycle_stat, arch_path)
-    comp_dic = comp_computation_energy(comp_path, cycle_stat, arch_path, workload_dic)
+    mem_dic = comp_mem_energy(mem_path, cycle_stat, arch_path, res_folder)
+    comp_dic = comp_computation_energy(comp_path, cycle_stat, arch_path, workload_dic, res_folder)
     
     print("SATA_Sim simulaton successes. Please go to the result folder to locate the energy results.")
 

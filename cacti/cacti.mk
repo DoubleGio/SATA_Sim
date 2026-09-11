@@ -12,17 +12,17 @@ LIBS =
 INCS = -lm
 
 ifeq ($(TAG),dbg)
-  DBG = -Wall 
-  OPT = -ggdb -g -O0 -DNTHREADS=1  -gstabs+
+	DBG = -Wall 
+	OPT = -std=gnu++98 -g -O0 -DNTHREADS=1
 else
   DBG = 
-  OPT = -g  -msse2 -mfpmath=sse -DNTHREADS=$(NTHREADS)
+	OPT = -std=gnu++98 -g -DNTHREADS=$(NTHREADS)
 endif
 
 #CXXFLAGS = -Wall -Wno-unknown-pragmas -Winline $(DBG) $(OPT) 
 CXXFLAGS = -Wno-unknown-pragmas $(DBG) $(OPT) 
-CXX = g++ -m64
-CC  = gcc -m64
+CXX ?= c++
+CC  ?= cc
 
 SRCS  = area.cc bank.cc mat.cc main.cc Ucache.cc io.cc technology.cc basic_circuit.cc parameter.cc \
 		decoder.cc component.cc uca.cc subarray.cc wire.cc htree2.cc extio.cc extio_technology.cc \

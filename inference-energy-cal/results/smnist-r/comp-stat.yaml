@@ -10,6 +10,12 @@ lif:
     n: 0.53055
     y: 0.03135
   lpower: 0.000348
+rf:
+  area: 0.003843
+  dpower:
+    n: 4.18095
+    y: 0.06882
+  lpower: 0.002431
 spad:
   area: 0.000891
   dpower:

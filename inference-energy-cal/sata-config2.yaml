@@ -1,0 +1,290 @@
+architecture:
+  name: SATA-inference
+  dataflow: sata
+  # timestep: 8
+  clock-frequency: 400
+  act-prec: 1
+  weight-prec: 8
+  output-prec: 1
+
+  subtree:
+    - name: PE-array
+      class: pe-array
+      attributes:
+        width: 8
+        height: 16
+        
+      subtree:
+        - name: PE-compute
+          class: pe-compute
+
+          local:
+          # spike-mac: W*X (accumulate input)
+            - name: and-gate # W*X for X \in {0,1} => W if X=1 else 0
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 1
+            - name: adder
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: adder
+                width: 8
+                gated: n
+                count: 1
+            - name: reg-acc
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: register
+                width: 16
+                gated: y
+                count: 1
+
+          # lif neuron: u[t+1] = u[t] * alpha + W*X
+            - name: comp-lif # spiking: s[t+1] = 1 if u[t+1] > th else 0
+              class: compute
+              act-tag: lif
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            # - name: sub-lif # decay: u[t+1] - u[t] >> 4 [shift is free]
+            #   class: compute
+            #   act-tag: lif
+            #   attributes:
+            #     kernel: subtractor
+            #     width: 16
+            #     gated: n
+            #     count: 1
+            - name: mul-lif # decay
+              class: compute
+              act-tag: lif
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-alpha # decay factor
+              class: compute
+              act-tag: lif
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th # threshold
+              class: compute
+              act-tag: lif
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-membrane # membrane potential
+              class: compute
+              act-tag: lif
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # li neuron: u[t+1] = u[t] * alpha + W*X
+            # - name: sub-li # decay: u[t+1] - u[t] >> 4 [shift is free]
+            #   class: compute
+            #   act-tag: li
+            #   attributes:
+            #     kernel: subtractor
+            #     width: 16
+            #     gated: n
+            #     count: 1
+            - name: mul-li # decay
+              class: compute
+              act-tag: li
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-alpha # decay factor
+              class: compute
+              act-tag: li
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-membrane
+              class: compute
+              act-tag: li
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # rf neuron: u[t+1] = u[t] * gamma + W*X;   u, gamma \in C
+          # gamma = alpha * rho, precomputed buffer, alpha->decay, rho->rotation
+          # rf neuron (real-valued): 
+          #   u[t+1] = u[t] * Re(gamma) - v[t] * Im(gamma) + W*X
+          #   v[t+1] = u[t] * Im(gamma) + v[t] * Re(gamma)
+            - name: comp-rf # spiking: s[t+1] = 1 if Im(u[t+1]) > th else 0
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            - name: mul-rf # decay & rotation
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 4
+            - name: reg-gamma-real # update factor (real part)
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-gamma-imag # update factor (imaginary part)
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: add-rf # adder for real and imaginary parts
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 1
+            - name: sub-rf # subtractor for real and imaginary parts
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-th # threshold
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u # membrane potential (real part)
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v # membrane potential (imaginary part)
+              class: compute
+              act-tag: rf
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+        - name: PE-mem
+          class: pe-mem
+
+          local:
+            - name: SPAD-spike
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 9
+                count: 1
+                gated: n
+            - name: SPAD-weight
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 9
+                count: 1
+                gated: y
+            - name: SPAD-psum
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 8
+                count: 1
+                gated: n        
+  
+    - name: GLBs
+      class: glbs
+
+      local:
+        - name: GLB-weight
+          class: memory
+          act-tag: glb-weight
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 147456
+            bank: 2
+            count: 1
+            gated: y
+        - name: GLB-ifmap
+          class: memory
+          act-tag: glb-ifmap
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 32768
+            bank: 2
+            count: 1
+            gated: y
+        - name: GLB-ofmap
+          class: memory
+          act-tag: glb-ofmap
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 32768
+            bank: 2
+            count: 1
+            gated: y
+  
+    - name: DRAMs
+      class: dram
+
+      local:
+        - name: DRAM-system
+          class: memory
+          act-tag: dram
+          attributes:
+            kernel: dram
+            width: 128
+            size-bytes: 536870912
+            bank: 16
+            count: 1
+            gated: y

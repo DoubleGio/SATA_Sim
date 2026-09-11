@@ -30,9 +30,9 @@ class operand_matrix(object):
         self.matrix_offset_arr = [0, 10000000, 20000000]
 
         # Address matrices
-        self.ifmap_addr_matrix = np.ones((self.ofmap_px_per_filt, self.conv_window_size), dtype=np.int)
-        self.filter_addr_matrix = np.ones((self.conv_window_size, self.num_filters), dtype=np.int)
-        self.ofmap_addr_matrix = np.ones((self.ofmap_px_per_filt, self.num_filters), dtype=np.int)
+        self.ifmap_addr_matrix = np.ones((self.ofmap_px_per_filt, self.conv_window_size), dtype=int)
+        self.filter_addr_matrix = np.ones((self.conv_window_size, self.num_filters), dtype=int)
+        self.ofmap_addr_matrix = np.ones((self.ofmap_px_per_filt, self.num_filters), dtype=int)
 
         # Flags
         self.params_set_flag = False
@@ -153,28 +153,28 @@ class operand_matrix(object):
         c_stride = self.col_stride
         Ew = self.ofmap_cols
         channel = self.num_input_channels
+        pad_top, _, pad_left, _ = self.topoutil.get_layer_padding(self.layer_id)
 
         # Calculate the row and col in the Eh X Ew mat
         ofmap_row = int(math.floor(i / Ew))
         ofmap_col = int(i % Ew)
 
         # Change this to corresponding ifmap row col for the start of the conv window
-        i_row = ofmap_row * r_stride
-        i_col = ofmap_col * c_stride
-
-        # Starting address of the convolution window
-        window_addr = i_row * ifmap_cols * channel + i_col * channel
+        i_row = ofmap_row * r_stride - pad_top
+        i_col = ofmap_col * c_stride - pad_left
 
         # Calculate the row and col in the conv window
         c_row = int(math.floor(j / (filter_col * channel)))
         k = int(j % (filter_col * channel))
         c_col = int(math.floor(k / channel))
         c_ch = int(k % channel)
-        if c_row + i_row >= self.ifmap_rows or c_col + i_col >= self.ifmap_cols:  # for padded address
+        input_row = c_row + i_row
+        input_col = c_col + i_col
+        if input_row < 0 or input_row >= self.ifmap_rows or input_col < 0 or input_col >= self.ifmap_cols:
             ifmap_px_addr = -1
         else:
-            internal_address = c_row * (ifmap_cols * channel) + c_col * channel + c_ch  # Address inside conv window
-            ifmap_px_addr = internal_address + window_addr + offset  # Global address
+            internal_address = input_row * (ifmap_cols * channel) + input_col * channel + c_ch
+            ifmap_px_addr = internal_address + offset
         return ifmap_px_addr
 
     # creates the ofmap operand

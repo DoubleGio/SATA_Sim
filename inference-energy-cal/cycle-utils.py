@@ -3,6 +3,8 @@ import os
 import shutil
 import subprocess
 import csv
+import argparse
+from conv_utils import compute_conv_output_size
 
 # Function Definitions
 
@@ -86,16 +88,18 @@ def update_config(yaml_filename, default_config_path, output_config_path):
     print(f"{output_config_path} updated successfully!")
 
 
-def generate_temp_workload():
-    with open('./workload.yaml', 'r') as file:
+
+def generate_temp_workload(filename):
+    with open(filename, 'r') as file:
         data = yaml.safe_load(file)
 
     # Convert YAML data to CSV rows
     csv_rows = []
     for layer in data.get('Layers', []):
+        name = layer.get('name', 'N/A')
         attributes = layer.get('attributes', {})
         row = [
-            layer.get('name', 'N/A'),
+            name,
             attributes.get('IFMAP Height', 'N/A'),
             attributes.get('IFMAP Width', 'N/A'),
             attributes.get('Filter Height', 'N/A'),
@@ -103,15 +107,36 @@ def generate_temp_workload():
             attributes.get('Channels', 'N/A'),
             attributes.get('Num Filter', 'N/A'),
             attributes.get('Strides', 'N/A'),
-            ''
+            attributes.get('Padding', 'same')
         ]
         csv_rows.append(row)
+
+        if attributes.get('Recurrent', False):
+            # Add an additional row for recurrent layers
+            if 'Conv' in name:
+                of_h, of_w = compute_conv_output_size(
+                    attributes['IFMAP Height'], attributes['IFMAP Width'],
+                    attributes['Filter Height'], attributes['Filter Width'],
+                    attributes['Strides'], attributes.get('Padding', 'same')
+                )
+            else:
+                of_h, of_w = 1, 1
+            recurrent_row = [
+                name + '-recurrent',
+                of_h, of_w, 1, 1,  # Assuming 1x1 kernel for recurrent connections
+                attributes.get('Num Filter', 'N/A'),
+                attributes.get('Num Filter', 'N/A'),
+                1,  # Assuming stride of 1 for recurrent connections
+                'valid'
+            ]
+            csv_rows.append(recurrent_row)
+            
 
     # Write the CSV data to a file
     csv_file_path = '../scale-sim/temp_workload.csv'
     with open(csv_file_path, 'w', newline='') as csv_file:
         csv_writer = csv.writer(csv_file)
-        csv_writer.writerow(['Layer name', 'IFMAP Height', 'IFMAP Width', 'Filter Height', 'Filter Width', 'Channels', 'Num Filter', 'Strides', ''])
+        csv_writer.writerow(['Layer name', 'IFMAP Height', 'IFMAP Width', 'Filter Height', 'Filter Width', 'Channels', 'Num Filter', 'Strides', 'Padding', ''])
         csv_writer.writerows(csv_rows)
 
     print("CSV file written successfully.")
@@ -119,16 +144,22 @@ def generate_temp_workload():
 # Main Execution
 
 if __name__ == "__main__":
-    filename = 'sata-config.yaml'
-    scalesim_dict = extract_scalesim_dict_from_yaml(filename)
+    parser = argparse.ArgumentParser(description="Generate Scale-Sim configuration and workload from YAML.")
+    parser.add_argument("-c", "--config", default="sata-config.yaml", help="Path to the configuration YAML file.",)
+    parser.add_argument("-w", "--workload", default="workload.yaml", help="Path to the workload YAML file.",)
+    args = parser.parse_args()
+    scalesim_dict = extract_scalesim_dict_from_yaml(args.config)
     # print(scalesim_dict)
     scalesim_path = '../scale-sim'
+    result_name = args.workload.removesuffix(".yaml").removeprefix("workload-") if "-" in args.workload else ""
+    result_folder = os.path.abspath(os.path.join("results", result_name))
+    os.makedirs(result_folder, exist_ok=True)
+    cycle_output_path = os.path.join(result_folder, "cycle-stat.yaml")
 
     output_filename = 'cycle-stat-temp.yaml'
     with open(output_filename, 'w') as outfile:
         yaml.dump(scalesim_dict, outfile, default_flow_style=False)
     print(f"Cycle stats written to {output_filename}")
-
 
     default_config_path = os.path.join('..', 'scale-sim', 'configs', 'default.cfg')
     output_config_path = os.path.join('..', 'scale-sim', 'configs', 'running.cfg')
@@ -136,6 +167,6 @@ if __name__ == "__main__":
     # Update the copied file with values from the YAML file
     update_config(output_filename, default_config_path, output_config_path)
     os.remove(output_filename)
-    generate_temp_workload()
+    generate_temp_workload(args.workload)
     os.chdir(scalesim_path)
-    subprocess.run('python3 run.py', shell=True)
+    subprocess.run(f'python3 run.py --output-path {cycle_output_path}', shell=True)

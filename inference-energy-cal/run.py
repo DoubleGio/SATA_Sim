@@ -1,4 +1,5 @@
 import subprocess
+import argparse
 
 
 def print_sata_sim_banner():
@@ -14,10 +15,13 @@ def print_sata_sim_banner():
     print(banner)
 
 if __name__ == "__main__":
-
+    parser = argparse.ArgumentParser(description="Run SATA simulation utilities.")
+    parser.add_argument("-c", "--config", default="sata-config.yaml", help="Path to the configuration YAML file.",)
+    parser.add_argument("-w", "--workload", default="workload.yaml", help="Path to the workload YAML file.",)
+    args = parser.parse_args()
 
     print_sata_sim_banner()
-    subprocess.run('python3 comp-utils.py', shell=True)
-    subprocess.run('python3 mem-utils.py', shell=True)
-    subprocess.run('python3 cycle-utils.py', shell=True)
-    subprocess.run('python3 energy-cal.py', shell=True)
+    subprocess.run(["python3", "comp-utils.py", "-c", args.config, "-w", args.workload], check=True)
+    subprocess.run(["python3", "mem-utils.py", "-c", args.config, "-w", args.workload], check=True)
+    subprocess.run(["python3", "cycle-utils.py", "-c", args.config, "-w", args.workload], check=True)
+    subprocess.run(["python3", "energy-cal.py", "-c", args.config, "-w", args.workload], check=True)

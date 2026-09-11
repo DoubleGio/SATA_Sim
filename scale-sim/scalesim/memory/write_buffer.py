@@ -5,7 +5,7 @@ import math
 import numpy as np
 #import matplotlib.pyplot as plt
 from tqdm import tqdm
-from memory.write_port import write_port
+from .write_port import write_port
 
 
 class write_buffer:

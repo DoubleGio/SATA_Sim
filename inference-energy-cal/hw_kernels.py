@@ -51,7 +51,7 @@ class register(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -86,7 +86,7 @@ class registerfiles(nn.Module):
         return self.size*self.byte_lpower
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -138,7 +138,7 @@ class comparator(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -187,7 +187,7 @@ class lfsr_rng(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -305,7 +305,7 @@ class fifo(nn.Module):
         return self.l_power[self.depth][self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -357,7 +357,7 @@ class multiplier(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -461,7 +461,7 @@ class subtractor(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total
 
@@ -513,6 +513,6 @@ class andgate(nn.Module):
         return self.l_power[self.width]/1000.
     
     def get_total_power(self):
-        total = self.get_dpower()+self.get_lpower
+        total = self.get_dpower()+self.get_lpower()
         ### Return unit in mw
         return total

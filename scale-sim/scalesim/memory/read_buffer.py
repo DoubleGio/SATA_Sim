@@ -4,7 +4,7 @@ import math
 import numpy as np
 from tqdm import tqdm
 
-from memory.read_port import read_port
+from .read_port import read_port
 
 
 class read_buffer:

@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from memory.read_port import read_port
+from .read_port import read_port
 
 
 class ReadBufferEstimateBw:

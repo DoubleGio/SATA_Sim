@@ -135,7 +135,8 @@ class topologies(object):
                     "Channels",
                     "Num filter",
                     "Stride height",
-                    "Stride width"
+                    "Stride width",
+                    "Padding"
                 ]
 
         f = open(filename, 'w')
@@ -154,11 +155,14 @@ class topologies(object):
     def append_topo_arrays(self, layer_name, elems):
         entry = [layer_name]
 
-        for i in range(1, len(elems)):
+        for i in range(1, min(len(elems), 9)):
             val = int(str(elems[i]).strip())
             entry.append(val)
             if i == 7 and len(elems) < 9:
                 entry.append(val)  # Add the same stride in the col direction automatically
+
+        padding = elems[9].strip() if len(elems) > 9 else 0
+        entry.append(self._parse_padding(padding))
 
         # ISSUE #9 Fix
         assert entry[3] <= entry[1], 'Filter height cannot be larger than IFMAP height'
@@ -168,21 +172,26 @@ class topologies(object):
 
     # create network topology array
     def append_topo_entry_from_list(self, layer_entry_list=[]):
-        assert 7 < len(layer_entry_list) < 10, 'Incorrect number of parameters'
+        assert 7 < len(layer_entry_list) < 11, 'Incorrect number of parameters'
 
         entry = [str(layer_entry_list[0])]
 
-        for i in range(1, len(layer_entry_list)):
+        for i in range(1, min(len(layer_entry_list), 9)):
             val = int(str(layer_entry_list[i]).strip())
             entry.append(val)
             if i == 7 and len(layer_entry_list) < 9:
                 entry.append(val)           # Add the same stride in the col direction automatically
 
+        padding = layer_entry_list[9] if len(layer_entry_list) > 9 else 0
+        entry.append(self._parse_padding(padding))
+
         self.append_layer_entry(entry,toponame=self.current_topo_name)
 
     # add to the existing data from a list
     def append_layer_entry(self, entry, toponame=""):
-        assert len(entry) == 9, 'Incorrect number of parameters'
+        assert len(entry) in (9, 10), 'Incorrect number of parameters'
+        if len(entry) == 9:
+            entry = entry + [0]
 
         if not toponame == "":
             self.current_topo_name = toponame
@@ -206,8 +215,9 @@ class topologies(object):
             num_filt = array[6]
             stride_h = array[7]
             stride_w = array[8]
-            ofmap_h = int(math.ceil((ifmap_h - filt_h + stride_h) / stride_h))
-            ofmap_w = int(math.ceil((ifmap_w - filt_w + stride_w) / stride_w))
+            pad_top, pad_bottom, pad_left, pad_right = self.get_layer_padding(layer_id=len(self.layers_calculated_hyperparams))
+            ofmap_h = int(math.ceil((ifmap_h + pad_top + pad_bottom - filt_h + 1) / stride_h))
+            ofmap_w = int(math.ceil((ifmap_w + pad_left + pad_right - filt_w + 1) / stride_w))
             num_mac = ofmap_h * ofmap_w * filt_h * filt_w * num_ch * num_filt
             window_size = filt_h * filt_w * num_ch
             entry = [ofmap_h, ofmap_w, num_mac, window_size]
@@ -315,6 +325,31 @@ class topologies(object):
 
         layer_params = self.topo_arrays[layer_id]
         return layer_params[7:9]
+
+    def get_layer_padding(self, layer_id=0):
+        layer_params = self.topo_arrays[layer_id]
+        padding = layer_params[9] if len(layer_params) > 9 else 0
+        if padding == 'same':
+            ifmap_h, ifmap_w = self.get_layer_ifmap_dims(layer_id)
+            filt_h, filt_w = self.get_layer_filter_dims(layer_id)
+            stride_h, stride_w = self.get_layer_strides(layer_id)
+            ofmap_h = int(math.ceil(ifmap_h / stride_h))
+            ofmap_w = int(math.ceil(ifmap_w / stride_w))
+            total_h = max((ofmap_h - 1) * stride_h + filt_h - ifmap_h, 0)
+            total_w = max((ofmap_w - 1) * stride_w + filt_w - ifmap_w, 0)
+            return total_h // 2, total_h - total_h // 2, total_w // 2, total_w - total_w // 2
+        if padding == 'valid' or padding == 0:
+            return 0, 0, 0, 0
+        return padding, padding, padding, padding
+
+    @staticmethod
+    def _parse_padding(padding):
+        padding = str(padding).strip().lower()
+        if padding in ('', 'valid', '0'):
+            return 0
+        if padding == 'same':
+            return padding
+        return int(padding)
 
 
     def get_layer_window_size(self, layer_id=0):

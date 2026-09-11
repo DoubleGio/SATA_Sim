@@ -10,6 +10,17 @@ Layer 0:
   SRAM OFMAP Start Cycle: 15.0
   SRAM OFMAP Writes: 1024.0
 Layer 1:
+  DRAM Filter Reads: 65536.0
+  DRAM IFMAP Reads: 256.0
+  DRAM OFMAP Writes: 256.0
+  SRAM Filter Cycles: 19944.0
+  SRAM Filter Reads: 65536.0
+  SRAM IFMAP Cycles: 8873.0
+  SRAM IFMAP Reads: 8192.0
+  SRAM OFMAP Cycles: 8625.0
+  SRAM OFMAP Start Cycle: 270.0
+  SRAM OFMAP Writes: 1024.0
+Layer 2:
   DRAM Filter Reads: 2560.0
   DRAM IFMAP Reads: 256.0
   DRAM OFMAP Writes: 10.0

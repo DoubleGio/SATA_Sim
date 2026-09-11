@@ -1,5 +1,6 @@
 import subprocess
 import argparse
+import sys
 import csv
 import yaml
 import re
@@ -14,7 +15,7 @@ def run_command(command):
         return False
     return True
 
-def extract_data(filepath, dataflow):
+def extract_data(filepath, dataflow, output_path):
     # Create a dictionary to store the extracted information with the desired hierarchy
     extracted_data = {}
     extracted_data_os = {}
@@ -85,8 +86,6 @@ def extract_data(filepath, dataflow):
                     # Use LayerID as the key for the outer dictionary
                     extracted_data["Layer " + row["LayerID"]] = layer_data
 
-    # Define the output path for the YAML file
-    output_path = '../inference-energy-cal/results/cycle-stat.yaml'
     if dataflow == 'sata':
         # extracted_data.update(extracted_data_ws)
         # print(extracted_data)
@@ -106,6 +105,7 @@ def extract_data(filepath, dataflow):
                 merged_dict[layer] = subdict2
         # print(merged_dict)
     # Write the extracted data to a YAML file
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as yaml_file:
         yaml.dump(merged_dict, yaml_file, default_flow_style=False)
     
@@ -113,6 +113,14 @@ def extract_data(filepath, dataflow):
 
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Run Scale-Sim and extract cycle statistics.")
+    parser.add_argument(
+        '--output-path',
+        default='../inference-energy-cal/results/cycle-stat.yaml',
+        help='Path for the extracted cycle-stat YAML file.',
+    )
+    args = parser.parse_args()
 
     default_config_path = "./configs/running.cfg"
     with open(default_config_path, 'r') as config_file:
@@ -128,14 +136,11 @@ if __name__ == "__main__":
     # print(dataflow)
     
     if dataflow == "os" or dataflow =="ws":
-        command = ['python3', 'scalesim/scale.py', '-t', 'topologies/sata/VGG9-test.csv', '-c', default_config_path, '-p', './running_results']
+        command = [sys.executable, '-m', 'scalesim.scale', '-t', 'topologies/sata/VGG9-test.csv', '-c', default_config_path, '-p', './running_results']
         success = run_command(command)
         if not success:
             print("Running scalesim for os/ws dataflow is failed.")
     elif dataflow == 'sata':
-        # print("test")
-    # elif dataflow == "sata":
-
         output_config_path = ["./configs/running_ws.cfg","./configs/running_os.cfg"]
         report_list = []
         for file in output_config_path:
@@ -154,9 +159,7 @@ if __name__ == "__main__":
                 config_file.write(updated_content)
                 # Apply the first replacement
 
-
-
-            command = ['python3', 'scalesim/scale.py', '-t', 'temp_workload.csv', '-c', file, '-p', './running_results']
+            command = [sys.executable, '-m', 'scalesim.scale', '-t', 'temp_workload.csv', '-c', file, '-p', './running_results']
             success = run_command(command)
             if not success:
                 print("Running scalesim for sata dataflow is failed: " + file[-6:-4])
@@ -166,9 +169,9 @@ if __name__ == "__main__":
                     content = f.read()
                 name = re.search(r"run_name\s*=\s*([^\n]+)", content)
                 report_list.append('./running_results/'+ name.group(1).strip() + '/DETAILED_ACCESS_REPORT.csv')
-    # dataflow = 'sata'
+
     # report_list = ['./running_results/SATA-inference-os/DETAILED_ACCESS_REPORT.csv', './running_results/SATA-inference-ws/DETAILED_ACCESS_REPORT.csv']
-    extract_data(report_list,dataflow)
+    extract_data(report_list, dataflow, args.output_path)
     folder_to_clean = './running_results/'
     for filename in os.listdir(folder_to_clean):
         file_path = os.path.join(folder_to_clean, filename)

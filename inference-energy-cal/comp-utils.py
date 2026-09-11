@@ -1,5 +1,7 @@
+import os
 import yaml
 import hw_kernels  # Assuming hw-kernels.py is in the same directory
+import argparse
 
 # Function Definitions
 
@@ -96,13 +98,18 @@ def aggregate_act_data(act_dict):
 # Main Execution
 
 if __name__ == "__main__":
-    filename = 'sata-config.yaml'
-    act_dict = extract_act_dict_from_yaml(filename)
-    # print(act_dict)
+    parser = argparse.ArgumentParser(description="Aggregate computation components from SATA configuration.")
+    parser.add_argument("-c", "--config", default="sata-config.yaml", help="Path to the config YAML.")
+    parser.add_argument("-w", "--workload", default="workload.yaml", help="Path to the workload YAML.")
+    args = parser.parse_args()
+    res_folder = os.path.join("results", args.workload.removesuffix(".yaml").removeprefix("workload-") if "-" in args.workload else "")
+    os.makedirs(res_folder, exist_ok=True)
+
+    act_dict = extract_act_dict_from_yaml(args.config)
     aggregated_act_data = aggregate_act_data(act_dict)
     print(aggregated_act_data)
 
-    output_filename = 'results/comp-stat.yaml'
+    output_filename = os.path.join(res_folder, "comp-stat.yaml")
     with open(output_filename, 'w') as outfile:
         yaml.dump(aggregated_act_data, outfile, default_flow_style=False)
     print(f"Computation components written to {output_filename}")
