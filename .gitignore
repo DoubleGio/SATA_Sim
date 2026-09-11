@@ -1,2 +1,8 @@
 __pycache__/
 .DS_Store
+cacti/obj_dbg/
+cacti/obj_opt/
+cacti/cacti
+cacti/*.o
+cacti/*.so
+cacti/*.a
