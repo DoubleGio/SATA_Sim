@@ -1,0 +1,25 @@
+drf13:
+  energy-leakage: 21860.4184656
+  energy-operation: 9229.1072
+  energy-ungated: 18365976.441120002
+  total: 18397065.966785602
+lif:
+  energy-leakage: 3547.4230176
+  energy-operation: 0.011787500000000001
+  energy-ungated: 2986515.54696
+  total: 2990062.9817651003
+spad:
+  energy-leakage: 12047.4171312
+  energy-operation: 290900.54055464995
+  energy-ungated: 4891067.073551999
+  total: 5194015.03123785
+spike-mac:
+  energy-leakage: 1428.1832928000001
+  energy-operation: 64980.98544014999
+  energy-ungated: 443197.525056
+  total: 509606.69378895
+total: 27090750.6735775
+total_activation_ops: 32768250
+total_drf13_ops: 32768000
+total_lif_ops: 250
+total_mac_ops: 1035141146

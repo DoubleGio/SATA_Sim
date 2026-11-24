@@ -1,0 +1,20 @@
+DRAM-system:
+  ifmap: 38128.33934175
+  ofmap: 6751.051728750001
+  total: 62430.30911249999
+  weight: 17550.918042
+GLB-ifmap:
+  ifmap-dynamic: 5807.0331286875
+  ifmap-leakage: 1126317.6058447498
+  ifmap-total: 1132124.6389734372
+GLB-ofmap:
+  ofmap-dynamic: 54725.226125
+  ofmap-leakage: 1126317.6058447498
+  ofmap-total: 1181042.8319697499
+GLB-weight:
+  weight-dynamic: 1071.9919915
+  weight-leakage: 4482616.7297175
+  weight-total: 4483688.721709
+dram_total: 62430.30911249999
+sram_total: 6796856.192652187
+total: 6859286.501764688

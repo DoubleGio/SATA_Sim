@@ -3,6 +3,9 @@ architecture:
   dataflow: sata
   # timestep: 8
   clock-frequency: 400
+  act-prec: 1
+  weight-prec: 8
+  output-prec: 1
 
   subtree:
     - name: PE-array

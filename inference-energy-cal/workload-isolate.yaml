@@ -1,0 +1,35 @@
+General:
+  sparsity: 0.892
+  timestep: 250
+Layers:
+- attributes:
+    Channels: 1
+    Filter Height: 1
+    Filter Width: 1
+    IFMAP Height: 1
+    IFMAP Width: 1
+    Neuron Type: lif
+    Num Filter: 1
+    Recurrent: false
+    Strides: 1
+  name: FC1
+- name: Conv1
+  attributes:
+    IFMAP Height: 32
+    IFMAP Width: 32
+    Filter Height: 3
+    Filter Width: 3
+    Channels: 1
+    Num Filter: 64
+    Strides: 1
+    Neuron Type: drf13
+- name: Conv2
+  attributes:
+    IFMAP Height: 32
+    IFMAP Width: 32
+    Filter Height: 3
+    Filter Width: 3
+    Channels: 64
+    Num Filter: 64
+    Strides: 1
+    Neuron Type: drf13

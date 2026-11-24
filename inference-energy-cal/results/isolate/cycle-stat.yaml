@@ -1,0 +1,33 @@
+Layer 0:
+  DRAM Filter Reads: 1.0
+  DRAM IFMAP Reads: 1.0
+  DRAM OFMAP Writes: 1.0
+  SRAM Filter Cycles: 0.0
+  SRAM Filter Reads: 1.0
+  SRAM IFMAP Cycles: 0.0
+  SRAM IFMAP Reads: 1.0
+  SRAM OFMAP Cycles: 0.0
+  SRAM OFMAP Start Cycle: 15.0
+  SRAM OFMAP Writes: 25.0
+Layer 1:
+  DRAM Filter Reads: 576.0
+  DRAM IFMAP Reads: 1024.0
+  DRAM OFMAP Writes: 57607.0
+  SRAM Filter Cycles: 6574.0
+  SRAM Filter Reads: 576.0
+  SRAM IFMAP Cycles: 14116.0
+  SRAM IFMAP Reads: 64800.0
+  SRAM OFMAP Cycles: 14127.0
+  SRAM OFMAP Start Cycle: 8.0
+  SRAM OFMAP Writes: 68544.0
+Layer 2:
+  DRAM Filter Reads: 36864.0
+  DRAM IFMAP Reads: 649682.0
+  DRAM OFMAP Writes: 57607.0
+  SRAM Filter Cycles: 269221.0
+  SRAM Filter Reads: 36864.0
+  SRAM IFMAP Cycles: 272668.0
+  SRAM IFMAP Reads: 4147200.0
+  SRAM OFMAP Cycles: 272112.0
+  SRAM OFMAP Start Cycle: 575.0
+  SRAM OFMAP Writes: 68544.0

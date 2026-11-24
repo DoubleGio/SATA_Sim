@@ -1,26 +1,19 @@
-li:
-  energy-leakage: 103.00780511999999
-  energy-operation: 0.48960800000000004
-  energy-ungated: 165006.23328
-  total: 165109.73069312
 lif:
-  energy-leakage: 112.37215104
-  energy-operation: 15.730176000000002
-  energy-ungated: 171319.094064
-  total: 171447.19639104002
+  energy-leakage: 4623.12342912
+  energy-operation: 679.925632
+  energy-ungated: 3095841.582
+  total: 3101144.63106112
 spad:
-  energy-leakage: 168.88113504
-  energy-operation: 24.817036724999998
-  energy-ungated: 68563.1575584
-  total: 68756.855730165
+  energy-leakage: 28784.44706464
+  energy-operation: 3190420.979712
+  energy-ungated: 11686045.210774401
+  total: 14905250.637551041
 spike-mac:
-  energy-leakage: 20.020325760000002
-  energy-operation: 5.543597475
-  energy-ungated: 6212.7591552
-  total: 6238.323078435
-total: 411552.10589276004
-total_activation_ops: 208544
-total_mac_ops: 88309
-total_total_li_ops: 7840
-total_total_lif_ops: 200704
-total_total_mac_ops: 88309
+  energy-leakage: 3412.305388160001
+  energy-operation: 712672.100352
+  energy-ungated: 1058915.4140032
+  total: 1774999.81974336
+total: 19781395.088355523
+total_activation_ops: 14420480
+total_lif_ops: 14420480
+total_mac_ops: 11352801280

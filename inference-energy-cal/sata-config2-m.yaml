@@ -1,0 +1,912 @@
+architecture:
+  name: SATA-inference
+  dataflow: sata
+  # timestep: 8
+  clock-frequency: 400
+  act-prec: 1
+  weight-prec: 8
+  output-prec: 1
+
+  subtree:
+    - name: PE-array
+      class: pe-array
+      attributes:
+        width: 8
+        height: 16
+        
+      subtree:
+        - name: PE-compute
+          class: pe-compute
+
+          local:
+          # spike-mac: accumulate real weighted input W*X for X in {0,1}.
+            - name: and-gate # W*X: pass W when X=1, otherwise pass 0.
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 1
+            - name: adder
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: adder
+                width: 8
+                gated: n
+                count: 1
+            - name: reg-acc
+              class: compute
+              act-tag: spike-mac
+              attributes:
+                kernel: register
+                width: 16
+                gated: y # gated when no input accumulation is active.
+                count: 1
+
+          # li-mult neuron:
+          #   u[t+1] = alpha*u[t] + W*X[t+1]
+            - name: mul-li-m # alpha*u: membrane decay.
+              class: compute
+              act-tag: li-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-alpha-m # decay factor
+              class: compute
+              act-tag: li-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-membrane-m # membrane potential u[t].
+              class: compute
+              act-tag: li-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # lif-mult neuron:
+          #   u[t+1] = alpha*u[t] + W*X[t+1]
+          #   s[t+1] = Theta(u[t+1] - th)
+            - name: comp-lif-m # compare u[t+1] against threshold th.
+              class: compute
+              act-tag: lif-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            - name: mul-lif-m # alpha*u: membrane decay.
+              class: compute
+              act-tag: lif-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-alpha-m # fixed decay factor alpha.
+              class: compute
+              act-tag: lif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th-m # firing threshold th.
+              class: compute
+              act-tag: lif-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-membrane-m # membrane potential u[t].
+              class: compute
+              act-tag: lif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # alif-mult neuron:
+          #   s[t] = Theta(u[t] - th[t])
+          #   u[t+1] = alpha*u[t] + W*X[t+1]
+          #   eta[t+1] = rho*eta[t] + (1-rho)*s[t]
+          #   th[t+1] = th_0 + beta*eta[t+1]
+            - name: comp-alif-m # compare u[t] against th[t] to produce s[t].
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            - name: mul-alif-m # alpha*u and rho*eta; beta is shift/add.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 2
+            - name: and-alif-m # (1-rho)*s: pass (1-rho) only when s=1.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 1
+            - name: add-alif-m # eta update and th = th_0 + beta*eta; beta=1.75.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 2
+            - name: sub-alif-m # beta*eta = (eta << 1) - (eta >> 2).
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-alpha-m # fixed membrane decay factor alpha.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            # - name: reg-beta-m # threshold adaptation factor
+            #   class: compute
+            #   act-tag: alif-m
+            #   attributes:
+            #     kernel: register
+            #     width: 8
+            #     gated: y
+            #     count: 1
+            - name: reg-rho-m # threshold adaptation decay factor rho=0.875.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-rho-inv-m # complementary factor 1-rho=0.125.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-eta-m # adaptive state eta[t].
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th-m # adaptive threshold th[t]=th_0+beta*eta[t].
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th0-m # baseline threshold th_0.
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-membrane-m # membrane potential u[t].
+              class: compute
+              act-tag: alif-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # rf-mult neuron, with gamma=a+i*b precomputed:
+          #   u[t+1] = a*u[t] - b*v[t] + W*X[t+1]
+          #   v[t+1] = b*u[t] + a*v[t]
+          #   s[t+1] = Theta(v[t+1] - th)
+            - name: comp-rf-m # compare v[t+1] against threshold th.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            - name: mul-rf-m # a*u, b*v, b*u, a*v: decay and rotation.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 4
+            - name: reg-a-m # precomputed gamma real part a.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-b-m # precomputed gamma imaginary part b.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: add-rf-m # accumulate real/imaginary state updates.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 1
+            - name: sub-rf-m # real-part subtraction a*u - b*v.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-th-m # firing threshold th.
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-m # real membrane component u[t].
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v-m # imaginary membrane component v[t].
+              class: compute
+              act-tag: rf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # rf-ada-mult neuron, with gamma=a+i*b precomputed:
+          #   u[t+1] = a*u[t] - b*v[t] + W*X[t+1]
+          #   v[t+1] = b*u[t] + a*v[t]
+          #   r[t+1] = r[t] - r[t] >> 3 + s[t] ∧ th
+          #   s[t+1] = Theta(v[t+1] - th - r[t])
+            - name: comp-rf-ada-m # compare v[t+1] against threshold th.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            - name: and-rf-ada-m # r[t] ∧ th: threshold comparison offset.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: andgate
+                width: 4
+                gated: n
+                count: 1
+            - name: mul-rf-ada-m # a*u, b*v, b*u, a*v: decay and rotation.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 4
+            - name: reg-a-ada-m # precomputed gamma real part a.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-b-ada-m # precomputed gamma imaginary part b.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: add-rf-ada-m # accumulate real/imaginary state updates.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 1
+            - name: sub-rf-ada-m # real-part subtraction a*u - b*v; r[t] decay; threshold comparison offset.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 3
+            - name: reg-th-ada-m # firing threshold th.
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-ada-m # real membrane component u[t].
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v-ada-m # imaginary membrane component v[t].
+              class: compute
+              act-tag: rf-ada-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # brf-mult neuron:
+          #   c = p(omega) - b'; omega' = dt * omega; W' = dt * W [precomputed]
+          #   b[t+1] = dt * (c - q[t])
+          #   U[t+1] = U[t] + b[t+1]*U[t] - omega'*V[t] + W'*X[t+1]
+          #   V[t+1] = V[t] + omega'*U[t] + b[t+1]*V[t]
+          #   S[t+1] = Theta(U[t+1] - th - q[t])
+          #   q[t+1] = q[t] - q[t] >> 3 + S[t+1]
+            - name: comp-brf-m
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            # Euler scaling: dt*b; then bd*U, dt*omega*V, dt*omega*U, bd*V
+            - name: mul-brf-m
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 5
+            # Complex Euler update: U uses subtraction, V uses addition
+            - name: add-brf-m
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 2
+            - name: sub-brf-m # b=c-q, threshold comparison offset, q decay
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 3
+            - name: add-q-brf-m # q[t] - q[t] >> 3 + S[t+1]
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-c-brf-m # precomputed c = p(omega) - b'
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-omega-brf-m # precomputed dt*omega
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-b-brf-m # b[t+1] = dt * (c - q[t])
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th-brf-m # base threshold vartheta
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-brf-m # real membrane potential
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v-brf-m # imaginary membrane potential
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-q-brf-m # adaptation state
+              class: compute
+              act-tag: brf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # drf-mult neuron, n=1 dendrite and k=1 history step:
+          #   D = a + i*b [precomputed]
+          #   U[t+1] = D*U[t] + W*X[t+1]
+          #   Re(U[t+1]) = a*u - b*v + W*X[t+1]
+          #   Im(U[t+1]) = b*u + a*v
+          #   H[t+1] = C*Re(U[t+1])
+          #   th[t+1] = th_0 + alpha_0*S[t]
+          #   S[t+1] = Theta(H[t+1] - th[t+1])
+            - name: comp-drf-m # S[t+1] = 1 if H[t+1] > th[t+1] else 0
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            # Complex state update: a*u, b*v, b*u, a*v; plus C*Re(U).
+            - name: mul-drf-m # a*u, b*v, b*u, a*v, and C*Re(U).
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 5
+            - name: and-drf-m # alpha_0*S[t]: pass alpha_0 only when S[t]=1.
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 1
+            # Complex product recombination, real input injection, and threshold sum.
+            - name: add-drf-m
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 3
+            - name: sub-drf-m # real part of D*U: a*u - b*v
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-a-drf-m # real part of precomputed D
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-b-drf-m # imaginary part of precomputed D
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-c-drf-m # dendritic readout weight C
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-alpha-drf-m # one-step threshold adaptation coefficient alpha_0
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-th0-drf-m # baseline threshold vartheta_0
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-drf-m # real part of complex membrane state
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v-drf-m # imaginary part of complex membrane state
+              class: compute
+              act-tag: drf-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+
+          # drf33-mult neuron, n=3 dendrites and k=3 spike-history steps:
+          #   U_i[t+1] = D_i*U_i[t] + W_i*X[t+1], i in {0,1,2}
+          #   H[t+1] = sum_i C_i*Re(U_i[t+1])
+          #   th[t+1] = th_0 + alpha_0*S[t] + alpha_1*S[t-1] + alpha_2*S[t-2]
+          #   S[t+1] = Theta(H[t+1] - th[t+1])
+            - name: comp-drf33-m # S[t+1] = 1 if H[t+1] > th[t+1] else 0
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            # 3 dendrites * 4 real products for D_i*U_i,
+            # plus 3 products for C_i*Re(U_i); spike-history terms use and-gates.
+            - name: mul-drf33-m
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 15
+            - name: and-drf33-m # alpha_i*S[t-i]: pass alpha_i only when S[t-i]=1.
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 3
+            # Three imaginary-part recombinations, three real input injections,
+            # two dendritic readout reductions, and three threshold reductions
+            # including the base threshold.
+            - name: add-drf33-m
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 11
+            - name: sub-drf33-m # one real-part subtraction per complex dendrite
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 3
+            - name: reg-a-drf33-m # real parts of precomputed D_i
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-b-drf33-m # imaginary parts of precomputed D_i
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-c-drf33-m # dendritic readout weights C_i
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-alpha-drf33-m # threshold-history weights alpha_i
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-th0-drf33-m # baseline threshold vartheta_0
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-drf33-m # real parts of complex membrane states
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-v-drf33-m # imaginary parts of complex membrane states
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-spike-drf33-m # packed three-step spike history S[t], S[t-1], S[t-2]
+              class: compute
+              act-tag: drf33-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+
+          # drf13-mult neuron, n=1 dendrite and k=3 spike-history steps:
+          #   U[t+1] = D*U[t] + W*X[t+1]
+          #   H[t+1] = C*Re(U[t+1])
+          #   th[t+1] = th_0 + alpha_0*S[t] + alpha_1*S[t-1] + alpha_2*S[t-2]
+          #   S[t+1] = Theta(H[t+1] - th[t+1])
+            - name: comp-drf13-m # S[t+1] = 1 if H[t+1] > th[t+1] else 0
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: comparator
+                width: 16
+                gated: n
+                count: 1
+            # Four products for D*U and one for C*Re(U); history terms use and-gates.
+            - name: mul-drf13-m
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: multiplier
+                width: 16
+                gated: n
+                count: 5
+            - name: and-drf13-m # alpha_i*S[t-i]: pass alpha_i only when S[t-i]=1.
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: andgate
+                width: 8
+                gated: n
+                count: 3
+            # Imaginary-part recombination, real input injection, and threshold sum.
+            - name: add-drf13-m
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: adder
+                width: 16
+                gated: n
+                count: 4
+            - name: sub-drf13-m # real part of D*U: a*u - b*v
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: subtractor
+                width: 16
+                gated: n
+                count: 1
+            - name: reg-a-drf13-m # real part of precomputed D
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-b-drf13-m # imaginary part of precomputed D
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-c-drf13-m # dendritic readout weight C
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-alpha-drf13-m # three threshold-history weights alpha_i
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 3
+            - name: reg-th0-drf13-m # baseline threshold vartheta_0
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+            - name: reg-u-drf13-m # real part of complex membrane state
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-v-drf13-m # imaginary part of complex membrane state
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 8
+                gated: y
+                count: 1
+            - name: reg-spike-drf13-m # packed three-step spike history S[t], S[t-1], S[t-2]
+              class: compute
+              act-tag: drf13-m
+              attributes:
+                kernel: register
+                width: 4
+                gated: y
+                count: 1
+
+        - name: PE-mem
+          class: pe-mem
+
+          local:
+            - name: SPAD-spike
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 9
+                count: 1
+                gated: n
+            - name: SPAD-weight
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 9
+                count: 1
+                gated: y
+            - name: SPAD-psum
+              class: memory
+              act-tag: spad
+              attributes:
+                kernel: registerfiles
+                width: 8
+                size-bytes: 8
+                count: 1
+                gated: n        
+  
+    - name: GLBs
+      class: glbs
+
+      local:
+        - name: GLB-weight
+          class: memory
+          act-tag: glb-weight
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 147456
+            bank: 2
+            count: 1
+            gated: y
+        - name: GLB-ifmap
+          class: memory
+          act-tag: glb-ifmap
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 32768
+            bank: 2
+            count: 1
+            gated: y
+        - name: GLB-ofmap
+          class: memory
+          act-tag: glb-ofmap
+          attributes:
+            kernel: sram
+            width: 32
+            size-bytes: 32768
+            bank: 2
+            count: 1
+            gated: y
+  
+    - name: DRAMs
+      class: dram
+
+      local:
+        - name: DRAM-system
+          class: memory
+          act-tag: dram
+          attributes:
+            kernel: dram
+            width: 128
+            size-bytes: 536870912
+            bank: 16
+            count: 1
+            gated: y

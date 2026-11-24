@@ -1,15 +1,9 @@
-li:
-  area: 0.00051
-  dpower:
-    n: 0.511
-    y: 0.02498
-  lpower: 0.000319
 lif:
-  area: 0.00056
+  area: 0.000129
   dpower:
-    n: 0.53055
-    y: 0.03135
-  lpower: 0.000348
+    n: 0.05625
+    y: 0.01886
+  lpower: 8.4e-05
 spad:
   area: 0.000891
   dpower:

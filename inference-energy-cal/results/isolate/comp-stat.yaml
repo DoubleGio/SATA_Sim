@@ -1,0 +1,66 @@
+alif:
+  area: 0.000468
+  dpower:
+    n: 0.27645
+    y: 0.04384
+  lpower: 0.000334
+brf:
+  area: 0.001246
+  dpower:
+    n: 0.82695
+    y: 0.08131
+  lpower: 0.000919
+drf:
+  area: 0.001118
+  dpower:
+    n: 0.7192
+    y: 0.08131
+  lpower: 0.000819
+drf13:
+  area: 0.001307
+  dpower:
+    n: 0.7973
+    y: 0.11266
+  lpower: 0.000949
+drf33:
+  area: 0.003361
+  dpower:
+    n: 2.1919
+    y: 0.23756
+  lpower: 0.00248
+li:
+  area: 0.000169
+  dpower:
+    n: 0.1101
+    y: 0.01249
+  lpower: 0.000125
+lif:
+  area: 0.000219
+  dpower:
+    n: 0.12965
+    y: 0.01886
+  lpower: 0.000154
+rf:
+  area: 0.000749
+  dpower:
+    n: 0.53335
+    y: 0.03135
+  lpower: 0.000559
+rf-ada:
+  area: 0.000921
+  dpower:
+    n: 0.644631
+    y: 0.04384
+  lpower: 0.000686
+spad:
+  area: 0.000891
+  dpower:
+    n: 0.21233
+    y: 0.11241
+  lpower: 0.000523
+spike-mac:
+  area: 9.7e-05
+  dpower:
+    n: 0.01924
+    y: 0.02511
+  lpower: 6.2e-05
